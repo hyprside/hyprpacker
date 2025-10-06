@@ -1,0 +1,125 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Manifest",
+	"type": "object",
+	"required": ["version", "package"],
+	"properties": {
+		"version": {
+			"type": "string",
+			"description": "The version of the manifest."
+		},
+		"package": {
+			"type": "array",
+			"description": "List of packages defined in the manifest.",
+			"items": {
+				"type": "object",
+				"required": ["name", "version", "source"],
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "The name of the package."
+					},
+					"version": {
+						"type": "string",
+						"description": "The version of the package."
+					},
+					"source": {
+						"description": "The source of the package. Can be binary, local PKGBUILD, or remote PKGBUILD from git.",
+						"oneOf": [
+							{
+								"type": "object",
+								"properties": {
+									"mode": { "const": "binary", "type": "string" },
+									"url": {
+										"type": "string",
+										"format": "uri",
+										"description": "The URL to download the prebuilt binary."
+									},
+									"sha256": {
+										"type": "string",
+										"pattern": "^[a-fA-F0-9]{64}$",
+										"description": "SHA256 hash of the binary. Required."
+									}
+								},
+								"required": ["mode", "url"]
+							},
+							{
+								"type": "object",
+								"properties": {
+									"mode": { "const": "pkgbuildlocal", "type": "string" },
+									"path": {
+										"type": "string",
+										"description": "Local path to the PKGBUILD folder."
+									},
+									"pick_packages_from_group": {
+										"type": "array",
+										"items": { "type": "string" },
+										"description": "Optional list of package names to pick from a PKGBUILD that produces multiple packages."
+									},
+									"sha256": {
+										"type": "string",
+										"pattern": "^[a-fA-F0-9]{64}$",
+										"description": "SHA256 hash placeholder for verification."
+									}
+								},
+								"required": ["mode", "path"]
+							},
+							{
+								"type": "object",
+								"properties": {
+									"mode": { "const": "pkgbuildgit", "type": "string" },
+									"repo_url": {
+										"type": "string",
+										"format": "uri",
+										"description": "Git repository URL for the PKGBUILD."
+									},
+									"rev": {
+										"type": "string",
+										"description": "The git revision (branch, tag or commit) to use."
+									},
+									"pick_packages_from_group": {
+										"type": "array",
+										"items": { "type": "string" },
+										"description": "Optional list of package names to pick from a PKGBUILD that produces multiple packages."
+									},
+									"sha256": {
+										"type": "string",
+										"pattern": "^[a-fA-F0-9]{64}$",
+										"description": "SHA256 hash placeholder for verification.",
+										"default": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+									}
+								},
+								"required": ["mode", "repo_url", "rev"]
+							}
+						]
+					},
+					"docker": {
+						"description": "Docker configuration for building this package.",
+						"oneOf": [
+							{
+								"type": "object",
+								"properties": {
+									"dockerfile_path": {
+										"type": "string",
+										"description": "Custom Dockerfile path."
+									}
+								},
+								"required": ["dockerfile_path"]
+							},
+							{
+								"type": "object",
+								"properties": {
+									"image_name": {
+										"type": "string",
+										"description": "Docker image name to use for building."
+									}
+								},
+								"required": ["image_name"]
+							}
+						]
+					}
+				}
+			}
+		}
+	}
+}

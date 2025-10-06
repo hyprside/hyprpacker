@@ -1,0 +1,119 @@
+#:schema ./hyprpacker-schema.json
+# ========================================================
+# Hyprpacker Manifest Tutorial (Detailed Explanation)
+# ========================================================
+# This manifest demonstrates how to define packages for Hyprpacker.
+# Each field is explained so users understand its purpose.
+#
+# General notes:
+# - version: the manifest version, useful for tracking changes in your config.
+# - packages: list of packages to build/fetch.
+# - SHA256 hash is optional. If omitted, Hyprpacker automatically sets a fake
+#   hash of 64 'A's. After building, copy the actual hash printed by Hyprpacker.
+# - Docker settings are optional. Default image_name = "archlinux:multilib-devel".
+# ========================================================
+
+version = "0.1-alpha"  # Manifest version, used for internal versioning.
+
+# ========================================================
+# 1. Binary package example
+# ========================================================
+# Binary packages are precompiled packages that Hyprpacker can download directly.
+# Use these for packages that do not need to be rebuilt from source.
+[[package]]
+name = "helloworld"           # The unique name of the package
+version = "1.0-1"             # Version string, used for identification and caching
+
+[package.source]
+mode = "binary"               # Indicates that this package is prebuilt
+url = "https://example.com/helloworld-1.0-1-x86_64.pkg.tar.zst"  # URL to download the package
+sha256 = "0000000000000000000000000000000000000000000000000000000000000000"  # SHA256 checksum for verification
+
+# Binary packages don't require a docker environment to build
+
+# ========================================================
+# 2. Omiting the hash
+# ========================================================
+# For cases were you don't know the hash of the package yet, you can omit it and it will
+# print an error message with the actual hash you can copy paste
+[[package]]
+name = "hellomom"           # The unique name of the package
+version = "1.0-1"             # Version string, used for identification and caching
+
+[package.source]
+mode = "binary"               # Indicates that this package is prebuilt
+url = "https://example.com/hellomom-1.0-1-x86_64.pkg.tar.zst"  # URL to download the package
+# No hash here, defaults to "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+# ========================================================
+# 3. Local PKGBUILD with selected packages
+# ========================================================
+# Local PKGBUILD packages are built from a local directory containing a PKGBUILD.
+#
+# pick_packages_from_group allows extracting only specific sub-packages from a PKGBUILD
+# if it happens to build multiple packages at the same time
+[[package]]
+name = "my-local-lib"
+version = "0.2.0"
+
+[package.source]
+mode = "pkgbuildlocal"      # Indicates a local PKGBUILD
+path = "my-local-lib"  # Relative path to the PKGBUILD directory from the manifest.toml file
+pick_packages_from_group = ["mylib", "mylib-utils"]  # Only these packages will be built from this PKGBUILD
+sha256 = "0000000000000000000000000000000000000000000000000000000000000000"  # SHA256 of the source archive
+
+[package.docker]
+dockerfile_path = "./docker/my-local-lib.Dockerfile"
+# Custom Dockerfile ensures reproducible builds with exact dependencies.
+
+# ========================================================
+# 4. Remote PKGBUILD via Git with selected packages
+# ========================================================
+# Git PKGBUILD packages are fetched from a remote Git repository.
+# pick_packages_from_group allows selecting specific packages to build.
+[[package]]
+name = "cool-tool"
+version = "0.5.1"
+
+[package.source]
+mode = "pkgbuildgit"        # Indicates a PKGBUILD from a Git repository
+repo_url = "https://gitlab.com/user/cool-tool.git"  # Repository URL
+rev = "main"                  # Git revision or branch to checkout
+pick_packages_from_group = ["cool-tool", "cool-tool-extra"]  # Build only these sub-packages
+sha256 = "0000000000000000000000000000000000000000000000000000000000000000"  # SHA256 of the prepared sources
+
+# Docker not specified, default image_name = "archlinux:multilib-devel"
+# If no Dockerfile is provided, the default Arch Linux multilib-devel image is used.
+
+# ========================================================
+# 5. Local PKGBUILD without package selection (builds all except debug)
+# ========================================================
+# If pick_packages_from_group is omitted, Hyprpacker builds all packages defined in the PKGBUILD.
+# Debug packages are excluded automatically.
+[[package]]
+name = "glibc"
+version = "2.42+r17"
+
+[package.source]
+mode = "pkgbuildlocal"
+path = "/home/user/src/glibc"
+# pick_packages_from_group omitted → build all sub-packages (except debug)
+sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+
+# Docker not specified, default image_name = "archlinux:multilib-devel"
+
+# ========================================================
+# 6. Another binary package with custom Docker image
+# ========================================================
+# You can override the default Docker image for binary packages if needed.
+[[package]]
+name = "yourdad"
+version = "0.2.0"
+
+[package.source]
+mode = "pkgbuildlocal" # Indicates a local PKGBUILD
+path = "yourdad"  # Relative path to the PKGBUILD directory from the manifest.toml file
+sha256 = "0000000000000000000000000000000000000000000000000000000000000000"  # SHA256 of the source archive
+
+[package.docker]
+image_name = "archlinux:base-devel" # you can choose to use any image your PKGBUILD needs

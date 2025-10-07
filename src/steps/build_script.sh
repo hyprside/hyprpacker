@@ -1,7 +1,7 @@
 # install all packages inside /deps/ with pacman
 mkdir /deps -p
 buildDependencies=$(find /deps/ -type f -name "*.pkg.tar.zst")
-pacman -y
+pacman -Sy
 if [ -n "$buildDependencies" ]; then
 	pacman -U --needed --noconfirm $buildDependencies
 fi

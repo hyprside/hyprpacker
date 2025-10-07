@@ -30,7 +30,7 @@ where
 	}
 	Ok(result)
 }
-pub fn gc_command(manifest: Manifest) {
+pub fn gc_command(manifest: &Manifest) {
 	match manifest.garbage_collect_sources() {
 		Err(e) => {
 			eprintln!(

@@ -62,7 +62,7 @@ impl FetchResult {
 		}
 	}
 }
-pub fn fetch(manifest: Manifest) -> FetchResult {
+pub fn fetch(manifest: &Manifest) -> FetchResult {
 	Package::create_sources_dir().unwrap();
 
 	const CONCURRENCY_LIMIT: usize = 4;

@@ -1,37 +1,15 @@
 use std::{
 	hash::{DefaultHasher, Hash, Hasher},
-	path::{Path, PathBuf},
+	path::PathBuf,
 	process::Command,
-	time::{SystemTime, UNIX_EPOCH},
+	time::UNIX_EPOCH,
 };
 
 use colored::Colorize;
 use thiserror::Error;
 
-fn has_file_newer_than(dir: &Path, timestamp: SystemTime) -> std::io::Result<bool> {
-	if !dir.exists() {
-		return Ok(false);
-	}
-
-	for entry in std::fs::read_dir(dir)? {
-		let entry = entry?;
-		let path = entry.path();
-		let metadata = entry.metadata()?;
-
-		if metadata.is_dir() {
-			if has_file_newer_than(&path, timestamp)? {
-				return Ok(true);
-			}
-		} else if let Ok(modified) = metadata.modified() {
-			if modified > timestamp {
-				return Ok(true);
-			}
-		}
-	}
-
-	Ok(false)
-}
 use crate::{
+	fs_utils::has_file_newer_than,
 	manifest::{DockerSettings, InvalidSourceError, Manifest, Package, Source},
 	prefix_commands,
 };
@@ -95,7 +73,7 @@ impl BuildResult {
 	}
 }
 
-pub fn build(manifest: Manifest) -> BuildResult {
+pub fn build(manifest: &Manifest) -> BuildResult {
 	println!();
 	let packages = manifest
 		.packages
@@ -298,8 +276,8 @@ impl Package {
 					.map_err(BuildError::UnpackBinaryError)?;
 
 				println!(
-					"  {}  {} {}",
-					" ".green().bold(),
+					"  {}  {} {}",
+					" ".green(),
 					archlinux_pkg_path
 						.file_name()
 						.unwrap()
@@ -396,7 +374,12 @@ impl Package {
 	}
 
 	pub fn needs_rebuild(&self, manifest: &Manifest) -> bool {
-		if manifest.packages.iter().filter(|p| self.build_deps.contains(&p.name)).any(|p| p.needs_rebuild(manifest)) {
+		if manifest
+			.packages
+			.iter()
+			.filter(|p| self.build_deps.contains(&p.name))
+			.any(|p| p.needs_rebuild(manifest))
+		{
 			return true;
 		}
 		let build_dir = self.get_out_dir();

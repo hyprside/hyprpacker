@@ -68,16 +68,16 @@ The binary will be available in `target/release/hyprpacker`.
 
 ```bash
 # Only fetch packages
-hyprpacker fetch manifest.toml
+hyprpacker fetch
 
 # Compile packages without building the image (Requires docker)
-hyprpacker build manifest.toml
+hyprpacker build
 
-# Compile and assemble the final SquashFS image (Requires docker)
-hyprpacker assemble manifest.toml
+# Compile and assemble the final SquashFS image (Requires docker and squashfs-tools)
+hyprpacker assemble
 
 # (Future) Upload the generated image to a server
-hyprpacker push manifest.toml
+hyprpacker push
 ```
 
 All build artifacts will be put inside `build/` in the current working directory

@@ -100,7 +100,7 @@ pub fn build(manifest: Manifest) -> BuildResult {
 	let packages = manifest
 		.packages
 		.iter()
-		.filter(|p| p.needs_rebuild())
+		.filter(|p| p.needs_rebuild(&manifest))
 		.cloned()
 		.collect::<Vec<Package>>();
 
@@ -395,7 +395,10 @@ impl Package {
 		Ok(())
 	}
 
-	pub fn needs_rebuild(&self) -> bool {
+	pub fn needs_rebuild(&self, manifest: &Manifest) -> bool {
+		if manifest.packages.iter().filter(|p| self.build_deps.contains(&p.name)).any(|p| p.needs_rebuild(manifest)) {
+			return true;
+		}
 		let build_dir = self.get_out_dir();
 		let last_successful_build_time_path = build_dir.join("last_successful_build_time");
 

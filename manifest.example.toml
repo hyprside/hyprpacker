@@ -60,7 +60,6 @@ version = "0.2.0"
 mode = "pkgbuildlocal"      # Indicates a local PKGBUILD
 path = "my-local-lib"  # Relative path to the PKGBUILD directory from the manifest.toml file
 pick_packages_from_group = ["mylib", "mylib-utils"]  # Only these packages will be built from this PKGBUILD
-sha256 = "0000000000000000000000000000000000000000000000000000000000000000"  # SHA256 of the source archive
 
 [package.docker]
 dockerfile_path = "./docker/my-local-lib.Dockerfile"
@@ -98,7 +97,6 @@ version = "2.42+r17"
 mode = "pkgbuildlocal"
 path = "/home/user/src/glibc"
 # pick_packages_from_group omitted → build all sub-packages (except debug)
-sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 
 # Docker not specified, default image_name = "archlinux:multilib-devel"
 
@@ -107,13 +105,34 @@ sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
 # ========================================================
 # You can override the default Docker image for binary packages if needed.
 [[package]]
-name = "yourdad"
+name = "hyprbus"
 version = "0.2.0"
 
 [package.source]
 mode = "pkgbuildlocal" # Indicates a local PKGBUILD
 path = "yourdad"  # Relative path to the PKGBUILD directory from the manifest.toml file
-sha256 = "0000000000000000000000000000000000000000000000000000000000000000"  # SHA256 of the source archive
+
+[package.docker]
+image_name = "archlinux:base-devel" # you can choose to use any image your PKGBUILD needs
+
+# ========================================================
+# 7. Build dependencies
+# ========================================================
+# There's a lot of cases where you need to use already built packages as build dependencies
+# for example custom libraries and packages that are not available in the arch repository.
+#
+# For those cases, you can specify a `build_deps` array that contains the names of previously defined packages
+# in the manifest.toml, and it will install those packages inside the container before starting the
+# build process.
+#
+# And for god's sake please don't make it have circular dependencies, otherwise you will cause a stack overflow
+[[package]]
+name = "hyprsettings"
+version = "0.2.0"
+build_deps = ["hyprbus"]
+[package.source]
+mode = "pkgbuildlocal" # Indicates a local PKGBUILD
+path = "your"  # Relative path to the PKGBUILD directory from the manifest.toml file
 
 [package.docker]
 image_name = "archlinux:base-devel" # you can choose to use any image your PKGBUILD needs

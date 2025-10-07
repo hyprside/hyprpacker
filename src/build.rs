@@ -2,7 +2,6 @@ use std::{
 	hash::{DefaultHasher, Hash, Hasher},
 	path::{Path, PathBuf},
 	process::Command,
-	sync::Arc,
 	time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -128,7 +127,7 @@ pub fn build(manifest: Manifest) -> BuildResult {
 			pkg.name,
 			pkg.version.dimmed()
 		);
-		match pkg.build() {
+		match pkg.build(&manifest) {
 			Ok(()) => built_packages += 1,
 			Err(error) => {
 				errors += 1;
@@ -202,7 +201,78 @@ impl Package {
 		std::fs::create_dir_all(&build_dir)?;
 		Ok(build_dir)
 	}
-	pub fn build(&self) -> Result<(), BuildError> {
+	pub fn get_this_package_src_root(&self) -> PathBuf {
+		let pkg_build_root = if let Source::PkgBuildLocal { path, .. } = &self.source {
+			path.clone()
+		} else {
+			self.get_package_prepared_dir()
+		};
+		pkg_build_root
+	}
+	pub fn get_built_archlinux_pkgs_paths(&self) -> std::io::Result<Vec<PathBuf>> {
+		let build_dir = self.create_out_dir()?;
+		macro_rules! files_listing {
+			() => {
+				std::fs::read_dir(&build_dir)?
+					.filter_map(|entry| entry.ok())
+					.filter(|entry| {
+						entry
+							.file_name()
+							.to_string_lossy()
+							.ends_with(".pkg.tar.zst")
+					})
+			};
+		}
+
+		let files_to_unpack: Vec<_> = match &self.source {
+			Source::PkgBuildGit {
+				pick_packages_from_group: Some(pkg_names),
+				..
+			}
+			| Source::PkgBuildLocal {
+				pick_packages_from_group: Some(pkg_names),
+				..
+			} => files_listing!()
+				.filter(|entry| {
+					let file_name = entry.file_name();
+					let file_name = file_name.to_string_lossy();
+					pkg_names.iter().any(|pkg| {
+						let pattern_prefix = format!("{}-{}-", pkg, self.version);
+						file_name.starts_with(&pattern_prefix)
+					})
+				})
+				.map(|e| e.path())
+				.collect::<Vec<PathBuf>>(),
+			Source::Binary { .. } => self.source_tarball_path().into_iter().collect(),
+			_ => files_listing!()
+				.filter(|entry| {
+					let file_name = entry.file_name();
+					let file_name = file_name.to_string_lossy();
+					let pattern_prefix = format!("{}-debug-{}-", self.name, self.version);
+					!file_name.starts_with(&pattern_prefix)
+				})
+				.map(|e| e.path())
+				.collect::<Vec<PathBuf>>(),
+		};
+		Ok(files_to_unpack)
+	}
+
+	pub fn get_deps_paths(&self, manifest: &Manifest) -> Vec<PathBuf> {
+		let deps_paths = manifest
+			.packages
+			.iter()
+			.filter(|p| self.build_deps.contains(&p.name))
+			.flat_map(|p| {
+				p.get_built_archlinux_pkgs_paths()
+					.into_iter()
+					.flatten()
+					.chain(p.get_deps_paths(manifest).into_iter())
+			})
+			.collect::<Vec<_>>();
+		deps_paths
+	}
+
+	pub fn build(&self, manifest: &Manifest) -> Result<(), BuildError> {
 		let build_dir = self.create_out_dir()?;
 		let unpacked_dir = self.create_out_unpacked_dir()?;
 		match &self.source {
@@ -239,41 +309,28 @@ impl Package {
 					"unpacked successfully".green().bold()
 				);
 			}
-			Source::PkgBuildGit {
-				pick_packages_from_group,
-				..
-			}
-			| Source::PkgBuildLocal {
-				pick_packages_from_group,
-				..
-			} => {
+			Source::PkgBuildGit { .. } | Source::PkgBuildLocal { .. } => {
 				let docker_image_name = self.build_docker_image_if_needed()?;
-				let pkg_build_root = if let Source::PkgBuildLocal { path, .. } = &self.source {
-					path.clone()
-				} else {
-					self.get_package_prepared_dir()
-				};
+				let pkg_src_root = self.get_this_package_src_root();
 				let mut command = Command::new("docker");
-				let script = r#"
-pacman -Sy --needed --noconfirm sudo # Install sudo
-useradd builduser -m # Create the builduser
-passwd -d builduser # Delete the buildusers password
-printf 'builduser ALL=(ALL) ALL\nDefaults    env_keep += "PKGDEST"\nDefaults    env_keep += "BUILDDIR"\n' | tee -a /etc/sudoers # Allow the builduser passwordless sudo
-cd /src
-rm -rf /out/makepkg/pkg
-rm -rf /out/makepkg/*.pkg.tar.zst
-rm -rf /out/*.pkg.tar.zst
-mkdir /out/makepkg -p
-chown builduser:builduser /out/ -R
-sudo -u builduser bash -c 'makepkg --noconfirm --noprogressbar -s -C -f'
-"#;
+				let deps_paths = self.get_deps_paths(&manifest);
+				let build_script = include_str!("./build_script.sh");
 				command
 					.arg("run")
 					.arg("--rm")
 					.arg("-v")
-					.arg(format!("{}:/src", pkg_build_root.canonicalize()?.display()))
+					.arg(format!("{}:/src", pkg_src_root.canonicalize()?.display()))
 					.arg("-v")
-					.arg(format!("{}:/out", build_dir.canonicalize()?.display()))
+					.arg(format!("{}:/out", build_dir.canonicalize()?.display()));
+				// map all dependencies to volumes inside /deps/
+				for dep_path in deps_paths {
+					command.arg("-v").arg(format!(
+						"{}:/deps/{}",
+						dep_path.canonicalize()?.display(),
+						dep_path.file_name().unwrap().to_string_lossy()
+					));
+				}
+				command
 					.arg("-e")
 					.arg("PKGDEST=/out")
 					.arg("-e")
@@ -281,7 +338,7 @@ sudo -u builduser bash -c 'makepkg --noconfirm --noprogressbar -s -C -f'
 					.arg(docker_image_name)
 					.arg("bash")
 					.arg("-c")
-					.arg(script);
+					.arg(build_script);
 				let exit_status = prefix_commands::run_command_with_tag(
 					command,
 					format!(
@@ -297,42 +354,12 @@ sudo -u builduser bash -c 'makepkg --noconfirm --noprogressbar -s -C -f'
 				if !exit_status.success() {
 					return Err(BuildError::Non0ExitCode(exit_status.code().unwrap_or(-1)));
 				}
-				let files_listing = std::fs::read_dir(&build_dir)?
-					.filter_map(|entry| entry.ok())
-					.filter(|entry| {
-						entry
-							.file_name()
-							.to_string_lossy()
-							.ends_with(".pkg.tar.zst")
-					});
-
-				let files_to_unpack: Vec<_> = match &pick_packages_from_group {
-					Some(pkg_names) => files_listing
-						.filter(|entry| {
-							let file_name = entry.file_name();
-							let file_name = file_name.to_string_lossy();
-							pkg_names.iter().any(|pkg| {
-								let pattern_prefix = format!("{}-{}-", pkg, self.version);
-								file_name.starts_with(&pattern_prefix)
-							})
-						})
-						.collect(),
-					None => files_listing
-						.filter(|entry| {
-							let file_name = entry.file_name();
-							let file_name = file_name.to_string_lossy();
-							let pattern_prefix = format!("{}-debug-{}-", self.name, self.version);
-							!file_name.starts_with(&pattern_prefix)
-						})
-						.collect(),
-				};
-
+				let files_to_unpack = self.get_built_archlinux_pkgs_paths()?;
 				if files_to_unpack.is_empty() {
 					return Err(BuildError::NoPackageFound);
 				}
 
-				for pkg_path in files_to_unpack {
-					let path = pkg_path.path();
+				for path in files_to_unpack {
 					println!(
 						"    {} {}",
 						"  Unpacking".yellow().bold(),

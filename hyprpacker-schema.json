@@ -19,6 +19,12 @@
 						"type": "string",
 						"description": "The name of the package."
 					},
+					"build_deps": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
 					"version": {
 						"type": "string",
 						"description": "The version of the package."

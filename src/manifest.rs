@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use crate::hash::Sha256Hash;
@@ -19,6 +20,8 @@ pub struct Package {
 	pub source: Source,
 	#[serde(default)]
 	pub docker: DockerSettings,
+	#[serde(default)]
+	pub build_deps: HashSet<String>,
 }
 #[derive(Debug, Deserialize, Serialize, Clone, Hash)]
 #[serde(untagged, rename_all = "snake_case")]

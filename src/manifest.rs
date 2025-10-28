@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 
 use crate::hash::Sha256Hash;
@@ -9,9 +9,19 @@ use thiserror::Error;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Manifest {
 	pub version: String,
+	pub kernel: Kernel,
 	#[serde(rename = "package", default = "Vec::new")]
 	pub packages: Vec<Package>,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Kernel {
+	pub url: String,
+	#[serde(default)]
+	pub options: KernelOptions,
+}
+
+pub type KernelOptions = BTreeMap<String, bool>;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Package {

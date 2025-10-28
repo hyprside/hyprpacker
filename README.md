@@ -13,6 +13,9 @@
   * Precompiled Arch Linux binary packages
 * Incremental package build
 * Final image assembly in SquashFS format
+* Kernel configuration with per-option toggles (no `CONFIG_` prefix needed) applied to the resulting `.config`
+* Containerized kernel build pipeline with cached sources
+* x86_64-focused kernel build (other architectures currently unsupported)
 * TOML manifest for describing the system
 * Simple CLI with subcommands:
 
@@ -20,6 +23,7 @@
   * `image packages build`: compiles packages (without creating the image)
   * `image packages garbage-collect` (`image packages gc`): removes unused package sources
   * `image assemble`: compiles and assembles the final image
+  * `kernel build`: builds the Linux kernel defined in the manifest
   * `image push`: uploads the generated image to an update server (planned)
   * `clean`: cleans build artifacts
 
@@ -31,6 +35,14 @@ The manifest is a TOML file that describes the system:
 
 ```toml
 version = "0.1-alpha"
+
+[kernel]
+url = "https://example.com/linux-kernel.tar.zst"
+
+# Kernel config toggles (names without the CONFIG_ prefix)
+[kernel.options]
+EXAMPLE_FEATURE = true
+ANOTHER_FEATURE = false
 
 [[packages]]
 name = "glibc"
@@ -83,6 +95,9 @@ hyprpacker image push
 
 # Remove stale package sources
 hyprpacker image packages gc
+
+# Build the manifest's kernel (Requires docker)
+hyprpacker kernel build
 
 # Clean build artifacts
 hyprpacker clean

@@ -1,4 +1,4 @@
 pub mod assemble;
 pub mod packages;
 
-pub use assemble::{assemble, AssembleError, SquashFsError};
+pub use assemble::{AssembleError, SquashFsError, assemble};

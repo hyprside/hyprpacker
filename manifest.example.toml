@@ -16,6 +16,19 @@
 version = "0.1-alpha"  # Manifest version, used for internal versioning.
 
 # ========================================================
+# Kernel configuration
+# ========================================================
+# Define the kernel tarball to download and optional configuration toggles.
+# Options map directly to symbols in the kernel .config file.
+[kernel]
+url = "https://example.com/linux-kernel.tar.zst"
+
+# Kernel config toggles (names do not need CONFIG_ prefix)
+[kernel.options]
+EXAMPLE_FEATURE = true
+ANOTHER_FEATURE = false
+
+# ========================================================
 # 1. Binary package example
 # ========================================================
 # Binary packages are precompiled packages that Hyprpacker can download directly.

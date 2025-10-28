@@ -8,7 +8,10 @@ use colored::Colorize;
 use thiserror::Error;
 
 use crate::{
-	credits, fs_utils, manifest::{Manifest, Package}, prefix_commands, privilage_escalation::ensure_root
+	credits, fs_utils,
+	manifest::{Manifest, Package},
+	prefix_commands,
+	privilage_escalation::ensure_root,
 };
 fn get_git_commit_hash() -> Option<String> {
 	let output = Command::new("git")
@@ -89,17 +92,19 @@ pub fn assemble<'m>(manifest: &'m Manifest) -> Result<PathBuf, AssembleError<'m>
 	let images_path = PathBuf::from("build/images");
 	std::fs::create_dir_all(images_path)?;
 	let image_path = PathBuf::from("build/images").join(&image_file_name);
-	println!("     {} {}", "→󰋩← Creating image".yellow().bold(), image_file_name);
+	println!(
+		"     {} {}",
+		"→󰋩← Creating image".yellow().bold(),
+		image_file_name
+	);
 	let mut command = Command::new("mksquashfs");
 	command
 		.arg(&sysroot_folder)
 		.arg(&image_path)
 		.args(["-comp", "zstd", "-b", "1M", "-noappend"]);
-	let status = prefix_commands::run_command_with_tag(
-		command,
-		"       [ →󰋩← mksquashfs ] ".blue().to_string(),
-	)
-	.map_err(SquashFsError::CommandError)?;
+	let status =
+		prefix_commands::run_command_with_tag(command, "       [ →󰋩← mksquashfs ] ".blue().to_string())
+			.map_err(SquashFsError::CommandError)?;
 	if !status.success() {
 		return Err(AssembleError::SquashfsError(SquashFsError::Non0ExitCode {
 			exit_code: status.code().unwrap_or(-1),

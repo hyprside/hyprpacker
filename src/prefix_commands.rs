@@ -20,14 +20,20 @@ pub fn run_command_with_tag(
 		s.spawn(|| {
 			let buf_reader = BufReader::new(stderr);
 			for line in buf_reader.lines().filter_map(Result::ok) {
-				let line = line.replace("\r\n", "\n").replace("\r", &format!("\r{tag}")).replace("\n", &format!("\n{tag}"));
+				let line = line
+					.replace("\r\n", "\n")
+					.replace("\r", &format!("\r{tag}"))
+					.replace("\n", &format!("\n{tag}"));
 				eprintln!("{}", format!("{tag}{line}").dimmed());
 			}
 		});
 		s.spawn(|| {
 			let buf_reader = BufReader::new(stdout);
 			for line in buf_reader.lines().filter_map(Result::ok) {
-				let line = line.replace("\r\n", "\n").replace("\r", &format!("\r{tag}")).replace("\n", &format!("\n{tag}"));
+				let line = line
+					.replace("\r\n", "\n")
+					.replace("\r", &format!("\r{tag}"))
+					.replace("\n", &format!("\n{tag}"));
 				println!("{}", format!("{tag}{line}").dimmed());
 			}
 		});

@@ -17,6 +17,7 @@ pub struct Manifest {
 pub struct Package {
 	pub name: String,
 	pub version: String,
+	pub author: Option<String>,
 	pub source: Source,
 	#[serde(default)]
 	pub docker: DockerSettings,

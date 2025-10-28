@@ -1,4 +1,3 @@
-use std::os::unix::ffi::OsStrExt;
 use std::{fs::DirEntry, path::Path, time::SystemTime};
 
 pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {

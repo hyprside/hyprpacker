@@ -16,10 +16,12 @@
 * TOML manifest for describing the system
 * Simple CLI with subcommands:
 
-  * `fetch`: downloads packages and validates the manifest
-  * `build`: compiles packages (without creating the image)
-  * `assemble`: compiles and assembles the final image
-  * `push`: uploads the generated image to an update server (planned)
+  * `image packages fetch`: downloads sources and validates the manifest
+  * `image packages build`: compiles packages (without creating the image)
+  * `image packages garbage-collect` (`image packages gc`): removes unused package sources
+  * `image assemble`: compiles and assembles the final image
+  * `image push`: uploads the generated image to an update server (planned)
+  * `clean`: cleans build artifacts
 
 ---
 
@@ -67,17 +69,23 @@ The binary will be available in `target/release/hyprpacker`.
 ## Usage
 
 ```bash
-# Only fetch packages
-hyprpacker fetch
+# Only fetch packages and sources
+hyprpacker image packages fetch
 
 # Compile packages without building the image (Requires docker)
-hyprpacker build
+hyprpacker image packages build
 
 # Compile and assemble the final SquashFS image (Requires docker and squashfs-tools)
-hyprpacker assemble
+hyprpacker image assemble
 
 # (Future) Upload the generated image to a server
-hyprpacker push
+hyprpacker image push
+
+# Remove stale package sources
+hyprpacker image packages gc
+
+# Clean build artifacts
+hyprpacker clean
 ```
 
 All build artifacts will be put inside `build/` in the current working directory

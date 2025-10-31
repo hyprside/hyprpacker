@@ -25,8 +25,8 @@ url = "https://example.com/linux-kernel.tar.zst"
 
 # Kernel config toggles (names do not need CONFIG_ prefix)
 [kernel.options]
-EXAMPLE_FEATURE = true
-ANOTHER_FEATURE = false
+EXAMPLE_FEATURE = "y"
+ANOTHER_FEATURE = "n"
 
 # ========================================================
 # 1. Binary package example

@@ -8,11 +8,11 @@ use std::{
 use colored::Colorize;
 use thiserror::Error;
 
-use crate::{manifest::Manifest, prefix_commands};
+use crate::{manifest::{KernelOptionValue, Manifest}, prefix_commands};
 
 const KERNEL_IMAGE_NAME: &str = "hyprpacker-kernel-builder:latest";
 const KERNEL_DOCKERFILE_CONTENT: &str = include_str!("../../../docker/kernel.Dockerfile");
-const BUILD_SCRIPT: &str = r#"set -euo pipefail
+const BUILD_SCRIPT: &str = r##"set -euo pipefail
 
 DOWNLOADS="/kernel/downloads"
 SRC="/kernel/src"
@@ -48,14 +48,36 @@ if [[ -f "${CONFIG}" ]]; then
     key="${key//./_}"
     value="${value//[[:space:]]/}"
     symbol="CONFIG_${key^^}"
-    case "${value,,}" in
-      y|yes|true|1)
-        ./scripts/config --enable "${symbol}"
-        ;;
-      *)
-        ./scripts/config --disable "${symbol}"
-        ;;
-    esac
+
+  # Determine replacement form
+  if [[ "${value}" == "y" ]]; then
+    replacement="${symbol}=y"
+  elif [[ "${value}" == "n" ]]; then
+    replacement="# ${symbol} is not set"
+  elif [[ "${value}" =~ ^[0-9]+$ ]]; then
+    # numeric value
+    replacement="${symbol}=${value}"
+  else
+    # treat as string: if already quoted, keep; otherwise quote and escape internal quotes
+    if [[ "${value}" =~ ^\".*\"$ || "${value}" =~ ^\'.*\'$ ]]; then
+      strval="${value}"
+    else
+      esc=$(printf '%s' "${value}" | sed 's/"/\\"/g')
+      strval="\"${esc}\""
+    fi
+    replacement="${symbol}=${strval}"
+  fi
+
+  # Escape replacement for sed (escape &, | and /)
+  escaped_replacement=$(printf '%s' "${replacement}" | sed -e 's/[&/|]/\\&/g')
+
+  # Try to replace existing setting (either CONFIG=... or commented "is not set")
+  sed -i -e "s|^${symbol}=.*|${escaped_replacement}|" -e "s|^# ${symbol} is not set|${escaped_replacement}|" "${KCONFIG_FILE}" || true
+
+  # If nothing matched above, append the setting
+  if ! grep -q -E "^(# ${symbol} is not set|${symbol}=)" "${KCONFIG_FILE}" 2>/dev/null; then
+    echo "${replacement}" >> "${KCONFIG_FILE}"
+  fi
   done < "${CONFIG}"
 fi
 
@@ -71,7 +93,7 @@ else
 fi
 
 popd >/dev/null
-"#;
+"##;
 
 #[derive(Debug, Error)]
 pub enum KernelBuildError {
@@ -191,7 +213,13 @@ fn write_options_file(
 	let mut file = File::create(path)?;
 	for (key, value) in options {
 		let normalized_key = normalize_option_key(key);
-		let val = if *value { 'y' } else { 'n' };
+		let val = match value {
+			KernelOptionValue::Number(n) => n.to_string(),
+			KernelOptionValue::String(s) => match s.as_str() {
+				"m" | "y" | "n" => s.clone(),
+				s => format!("\"{s}\"")
+			},
+		};
 		writeln!(file, "{normalized_key}={val}")?;
 	}
 	Ok(())

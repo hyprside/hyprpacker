@@ -20,8 +20,13 @@ pub struct Kernel {
 	#[serde(default)]
 	pub options: KernelOptions,
 }
-
-pub type KernelOptions = BTreeMap<String, bool>;
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum KernelOptionValue {
+	String(String),
+	Number(u64)
+}
+pub type KernelOptions = BTreeMap<String, KernelOptionValue>;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Package {

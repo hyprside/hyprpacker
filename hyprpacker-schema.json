@@ -22,7 +22,14 @@
 					"type": "object",
 					"description": "Kernel configuration overrides written to the .config file.",
 					"additionalProperties": {
-						"type": "boolean"
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "integer"
+							}
+						]
 					}
 				}
 			}

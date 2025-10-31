@@ -43,12 +43,6 @@ pub fn print_bootloader_download_result(res: &Result<PathBuf, BootloaderDownload
 				actual.as_str().white(),
 				"(The file on the remote server may be corrupted, tampered with, or the URL may be incorrect.)".red()
 			);
-			eprintln!(
-				"\n{} {}\n      {}",
-				"      help:".cyan().bold(),
-				"If you recently updated the manifest, make sure the 'sha256'\n            field matches the actual file. ".white(),
-				"      You may need to update the hash or check the source URL.\n".white()
-			);
 		}
 		Err(e) => {
 			eprintln!(

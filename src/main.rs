@@ -7,6 +7,7 @@ mod prefix_commands;
 mod privilage_escalation;
 mod size;
 mod sources;
+mod ovmf_download;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use std::{io::ErrorKind, path::PathBuf};
@@ -239,6 +240,7 @@ fn main() {
 			let Ok(bootloader_path) = bootloader_download_result else {
 				std::process::exit(1);
 			};
+			ovmf_download::print_ovmf_download_result(&ovmf_download::download_ovmf());
 		}
 	}
 }

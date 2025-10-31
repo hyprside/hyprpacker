@@ -24,7 +24,7 @@ pub struct Kernel {
 #[serde(untagged)]
 pub enum KernelOptionValue {
 	String(String),
-	Number(u64)
+	Number(u64),
 }
 pub type KernelOptions = BTreeMap<String, KernelOptionValue>;
 

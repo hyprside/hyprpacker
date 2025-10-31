@@ -8,7 +8,10 @@ use std::{
 use colored::Colorize;
 use thiserror::Error;
 
-use crate::{manifest::{KernelOptionValue, Manifest}, prefix_commands};
+use crate::{
+	manifest::{KernelOptionValue, Manifest},
+	prefix_commands,
+};
 
 const KERNEL_IMAGE_NAME: &str = "hyprpacker-kernel-builder:latest";
 const KERNEL_DOCKERFILE_CONTENT: &str = include_str!("../../../docker/kernel.Dockerfile");
@@ -217,7 +220,7 @@ fn write_options_file(
 			KernelOptionValue::Number(n) => n.to_string(),
 			KernelOptionValue::String(s) => match s.as_str() {
 				"m" | "y" | "n" => s.clone(),
-				s => format!("\"{s}\"")
+				s => format!("\"{s}\""),
 			},
 		};
 		writeln!(file, "{normalized_key}={val}")?;

@@ -10,7 +10,7 @@ mod sources;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use std::{io::ErrorKind, path::PathBuf};
-
+mod bootloader;
 use crate::{
 	commands::{
 		image::{self, packages},
@@ -37,10 +37,15 @@ enum Commands {
 		#[command(subcommand)]
 		command: ImageCommands,
 	},
-	/// Kernel related helpers
+	/// Kernel build commands
 	Kernel {
 		#[command(subcommand)]
 		command: KernelCommands,
+	},
+	/// Virtual machine utility commands
+	Vm {
+		#[command(subcommand)]
+		command: VMCommands,
 	},
 	/// Cleans up the build directory
 	Clean,
@@ -50,6 +55,12 @@ enum Commands {
 enum KernelCommands {
 	/// Builds the Linux kernel defined in the manifest
 	Build,
+}
+
+#[derive(Subcommand, Debug)]
+enum VMCommands {
+	// Runs the operating system inside a qemu virtual machine
+	Run,
 }
 
 #[derive(Subcommand, Debug)]
@@ -219,6 +230,15 @@ fn main() {
 			});
 			println!("{}", "Build directory cleaned successfully".green());
 			std::process::exit(0);
+		}
+		Commands::Vm {
+			command: VMCommands::Run,
+		} => {
+			let bootloader_download_result = bootloader::download_bootloader();
+			bootloader::print_bootloader_download_result(&bootloader_download_result);
+			let Ok(bootloader_path) = bootloader_download_result else {
+				std::process::exit(1);
+			};
 		}
 	}
 }

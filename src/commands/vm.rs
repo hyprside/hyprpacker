@@ -176,8 +176,8 @@ pub fn run_command(opts: RunCommandOptions) -> Result<(), RunCommandError> {
 				"cp {} /mnt/hyprside-vm/initramfs.img",
 				opts.initrd_path.display()
 			),
-			"SYSTEM_PARTITION=$(blkid -s UUID -o value /dev/nbd0p2)",
-			"USER_PARTITION=$(blkid -s UUID -o value /dev/nbd1p1)",
+			"SYSTEM_PARTITION=$(blkid -s PARTUUID -o value /dev/nbd0p2)",
+			"USER_PARTITION=$(blkid -s PARTUUID -o value /dev/nbd1p1)",
 			"cat > /mnt/hyprside-vm/limine.conf <<EOF
 timeout: 0
 /Hyprside

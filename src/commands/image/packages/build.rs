@@ -9,9 +9,7 @@ use colored::Colorize;
 use thiserror::Error;
 
 use crate::{
-	fs_utils::has_file_newer_than,
-	manifest::{DockerSettings, InvalidSourceError, Manifest, Package, Source},
-	prefix_commands,
+	fs_utils::has_file_newer_than, hash::hash_file, manifest::{DockerSettings, InvalidSourceError, Manifest, Package, Source}, prefix_commands
 };
 pub struct BuildResult {
 	total_packages: usize,
@@ -417,10 +415,7 @@ impl Package {
 			DockerSettings::DockerfilePath {
 				path: dockerfile_path,
 			} => {
-				let mut hasher = DefaultHasher::new();
-				dockerfile_path.canonicalize()?.hash(&mut hasher);
-				let hash = hasher.finish();
-				format!("hyprpacker-{}", hash)
+				format!("hyprpacker-{}", hash_file(dockerfile_path)?)
 			}
 			DockerSettings::ImageName { name } => name.clone(),
 		})

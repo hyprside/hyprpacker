@@ -2,7 +2,7 @@
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"title": "Manifest",
 	"type": "object",
-	"required": ["version", "kernel", "package"],
+	"required": ["version", "kernel", "package", "initrd"],
 	"properties": {
 		"version": {
 			"type": "string",
@@ -31,6 +31,17 @@
 							}
 						]
 					}
+				}
+			}
+		},
+		"initrd": {
+			"type": "object",
+			"description": "Options used when building initrd file",
+			"required": ["build_script"],
+			"properties": {
+				"build_script": {
+					"type": "string",
+					"description": "The script to call for building the initrd file"
 				}
 			}
 		},

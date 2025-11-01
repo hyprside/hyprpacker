@@ -16,6 +16,15 @@
 version = "0.1-alpha"  # Manifest version, used for internal versioning.
 
 # ========================================================
+# Initrd configuration
+# ========================================================
+[initrd]
+# Defines the script used to build the initrd file
+# It must accept the path to the initrd output file as a parameter
+# and print the path to all the dependencies and files that affect the output file
+# prefixed with `DEPENDENCY <path>`
+build_script = "./build-initrd.sh"
+# ========================================================
 # Kernel configuration
 # ========================================================
 # Define the kernel tarball to download and optional configuration toggles.

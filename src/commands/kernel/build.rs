@@ -16,7 +16,7 @@ use crate::{
 const KERNEL_IMAGE_NAME: &str = "hyprpacker-kernel-builder:latest";
 const KERNEL_DOCKERFILE_CONTENT: &str = include_str!("../../../docker/kernel.Dockerfile");
 const BUILD_SCRIPT: &str = r##"set -euo pipefail
-
+set -x
 DOWNLOADS="/kernel/downloads"
 SRC="/kernel/src"
 OUT="/kernel/out"
@@ -29,16 +29,16 @@ if [[ -z "${TARBALL}" ]]; then
   exit 1
 fi
 
-rm -rf "${SRC}/*"
+rm -rf "${SRC}"/*
+mkdir -p "${SRC}"
 tar -xf "${TARBALL}" -C "${SRC}"
 
-rm -rf "${OUT}/*"
-mkdir -p "${OUT}/modules"
+rm -rf "${OUT}"/*
 
-pushd "${SRC}" >/dev/null
+pushd "${SRC}"/* >/dev/null
 
 make x86_64_defconfig
-
+KCONFIG_FILE=".config"
 if [[ -f "${CONFIG}" ]]; then
   while IFS='=' read -r key value; do
     [[ -z "${key}" ]] && continue
@@ -51,12 +51,12 @@ if [[ -f "${CONFIG}" ]]; then
     key="${key//./_}"
     value="${value//[[:space:]]/}"
     symbol="CONFIG_${key^^}"
-
+    echo $key
   # Determine replacement form
   if [[ "${value}" == "y" ]]; then
     replacement="${symbol}=y"
   elif [[ "${value}" == "n" ]]; then
-    replacement="# ${symbol} is not set"
+    replacement="${symbol}=n"
   elif [[ "${value}" =~ ^[0-9]+$ ]]; then
     # numeric value
     replacement="${symbol}=${value}"
@@ -84,9 +84,7 @@ if [[ -f "${CONFIG}" ]]; then
   done < "${CONFIG}"
 fi
 
-make olddefconfig
 make -j"$(nproc)"
-make modules_install INSTALL_MOD_PATH="${OUT}/modules"
 
 if [[ -f arch/x86/boot/bzImage ]]; then
   cp arch/x86/boot/bzImage "${OUT}/kernel"
@@ -135,7 +133,11 @@ pub fn build(manifest: &Manifest) -> Result<KernelBuildResult, KernelBuildError>
 	let src_dir = kernel_root.join("src");
 	let out_dir = kernel_root.join("out");
 	let config_dir = kernel_root.join("config");
-
+	if let Ok(kernel_path) = locate_artifact(&out_dir) {
+		return Ok(KernelBuildResult {
+			artifact_path: kernel_path,
+		});
+	}
 	fs::create_dir_all(&downloads_dir)?;
 	fs::create_dir_all(&src_dir)?;
 	fs::create_dir_all(&out_dir)?;

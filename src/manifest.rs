@@ -10,6 +10,7 @@ use thiserror::Error;
 pub struct Manifest {
 	pub version: String,
 	pub kernel: Kernel,
+	pub initrd: InitrdOptions,
 	#[serde(rename = "package", default = "Vec::new")]
 	pub packages: Vec<Package>,
 }
@@ -39,6 +40,12 @@ pub struct Package {
 	#[serde(default)]
 	pub build_deps: HashSet<String>,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct InitrdOptions {
+	pub build_script: PathBuf,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, Hash)]
 #[serde(untagged, rename_all = "snake_case")]
 pub enum DockerSettings {

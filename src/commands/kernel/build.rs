@@ -39,6 +39,7 @@ if [[ -n "${KERNEL_TREE}" && -f "${KERNEL_TREE}/.gitignore" ]]; then
 
   # Cria repositório git temporário se não existir
   if [[ ! -d .git ]]; then
+  	git config --global --add safe.directory "$PWD"
     git init -q
   fi
 

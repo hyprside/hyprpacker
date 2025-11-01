@@ -46,9 +46,15 @@ if [[ -n "${KERNEL_TREE}" && -f "${KERNEL_TREE}/.gitignore" ]]; then
   # Remove tudo o que NÃO está no .gitignore (mantém objectos de build)
   mapfile -t TRACKED < <(git ls-files --cached --others --exclude-from=.gitignore --exclude-standard || true)
   if [[ ${#TRACKED[@]} -gt 0 ]]; then
-    echo "󰄾 Removing old tracked source files..."
-    rm -rf "${TRACKED[@]}" || true
+    echo "󰄾 Removing old tracked source files in chunks..."
+    CHUNK_SIZE=500
+    total=${#TRACKED[@]}
+    for ((i=0; i<total; i+=CHUNK_SIZE)); do
+      chunk=("${TRACKED[@]:i:CHUNK_SIZE}")
+      printf '%s\0' "${chunk[@]}" | xargs -0 rm -rf -- || true
+    done
   fi
+
 
   popd >/dev/null
 else

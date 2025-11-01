@@ -1,48 +1,85 @@
+
 # Hyprpacker
 
-**Hyprpacker** is a command-line utility for building and packaging the Hyprside Linux system. It allows you to manage packages from multiple sources, compile them, and assemble final images for distribution in a modular and incremental way.
+**Hyprpacker** is the official build system of the **Hyprside** operating system.
+It compiles the kernel, assembles the immutable system image, builds the initramfs, and can boot the OS inside a QEMU VM for testing — all through a unified CLI.
 
 ---
 
-## Features
+## ✨ Features
 
-* Package management from:
-
-  * Local PKGBUILD
-  * Remote Git repository
-  * Precompiled Arch Linux binary packages
-* Incremental package build
-* Final image assembly in SquashFS format
-* Kernel configuration with per-option toggles (no `CONFIG_` prefix needed) applied to the resulting `.config`
-* Containerized kernel build pipeline with cached sources
-* x86_64-focused kernel build (other architectures currently unsupported)
-* TOML manifest for describing the system
-* Simple CLI with subcommands:
-
-  * `image packages fetch`: downloads sources and validates the manifest
-  * `image packages build`: compiles packages (without creating the image)
-  * `image packages garbage-collect` (`image packages gc`): removes unused package sources
-  * `image assemble`: compiles and assembles the final image
-  * `kernel build`: builds the Linux kernel defined in the manifest
-  * `image push`: uploads the generated image to an update server (planned)
-  * `clean`: cleans build artifacts
+- **Modular package management**:
+  - Local PKGBUILDs
+  - Remote Git repositories
+  - Precompiled Arch Linux binary packages
+- **Incremental build** with cached sources
+- **Final system image** built as a SquashFS filesystem
+- **Containerized kernel build pipeline** (Docker)
+- **Initrd build automation** via manifest-defined script
+- **Fully automated VM boot** (kernel + image + initrd + UEFI)
+- **Unified CLI** with intuitive subcommands
 
 ---
 
-## Manifest Structure
+## 🧭 Command Structure
 
-The manifest is a TOML file that describes the system:
+```bash
+hyprpacker <command> [subcommand] [options]
+```
+
+| Main Command | Description                              |
+| ------------ | ---------------------------------------- |
+| `image`      | Image and package management operations  |
+| `kernel`     | Build the kernel defined in the manifest |
+| `initrd`     | Build the initramfs using a script       |
+| `vm`         | Virtual machine utilities (QEMU)         |
+| `clean`      | Remove the build directory               |
+
+### `image` Subcommands
+
+| Subcommand       | Description                                                   |
+| ---------------- | ------------------------------------------------------------- |
+| `assemble`       | Builds all packages and assembles the final `.squashfs` image |
+| `packages fetch` | Pre-downloads all sources and validates the manifest          |
+| `packages build` | Builds all packages without assembling the image              |
+| `packages gc`    | Removes unused source tarballs                                |
+| `push`           | *(Unimplemented)* Pushes the image to an update server        |
+
+### `kernel` Subcommands
+
+| Subcommand | Description                                       |
+| ---------- | ------------------------------------------------- |
+| `build`    | Compiles the Linux kernel defined in the manifest |
+
+### `initrd` Subcommands
+
+| Subcommand | Description                                                             |
+| ---------- | ----------------------------------------------------------------------- |
+| `build`    | Runs the build script defined in the manifest to generate the initramfs |
+
+### `vm` Subcommands
+
+| Subcommand | Description                                                               |
+| ---------- | ------------------------------------------------------------------------- |
+| `run`      | Builds everything (kernel, initrd, image) and launches the system in QEMU |
+| `reset`    | Recreates the user data disk (`user.qcow2`)                               |
+
+---
+
+## 🧾 Example Manifest (`manifest.toml`)
 
 ```toml
-version = "0.1-alpha"
+version = "0.1-dev"
 
 [kernel]
-url = "https://example.com/linux-kernel.tar.zst"
+url = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.10.tar.xz"
 
-# Kernel config toggles (names without the CONFIG_ prefix)
 [kernel.options]
-EXAMPLE_FEATURE = true
-ANOTHER_FEATURE = false
+DEBUG_INFO = false
+KALLSYMS_ALL = false
+
+[initrd]
+build_script = "scripts/build-initramfs.sh"
 
 [[packages]]
 name = "glibc"
@@ -62,51 +99,62 @@ source = { type = "pkgbuild", path = "./pkgs/tibs" }
 
 ---
 
-## Installation
+## ⚙️ Requirements
 
-> Requirements: Rust >= 1.70, Cargo
-
-Clone the repository and build:
-
-```bash
-git clone https://github.com/yourusername/hyprpacker.git
-cd hyprpacker
-cargo build --release
-```
-
-The binary will be available in `target/release/hyprpacker`.
+* **Rust Compiler**
+* **Docker** (for kernel and package builds)
+* **squashfs-tools** (for final image creation)
+* **QEMU** (for VM testing)
 
 ---
 
-## Usage
+## 🚀 Usage Examples
 
 ```bash
-# Only fetch packages and sources
+# Download all sources
 hyprpacker image packages fetch
 
-# Compile packages without building the image (Requires docker)
+# Build packages only
 hyprpacker image packages build
 
-# Compile and assemble the final SquashFS image (Requires docker and squashfs-tools)
+# Assemble the final system image
 hyprpacker image assemble
 
-# (Future) Upload the generated image to a server
-hyprpacker image push
-
-# Remove stale package sources
-hyprpacker image packages gc
-
-# Build the manifest's kernel (Requires docker)
+# Build the kernel
 hyprpacker kernel build
 
-# Clean build artifacts
+# Build the initramfs
+hyprpacker initrd build
+
+# Run the full system inside a UEFI QEMU VM
+hyprpacker vm run
+
+# Recreate the VM user data disk
+hyprpacker vm reset
+
+# Clean the build directory
 hyprpacker clean
 ```
 
-All build artifacts will be put inside `build/` in the current working directory
+All build artifacts are stored inside the `./build` directory.
 
 ---
 
-## License
+## 📁 Generated Directory Layout
 
-Hyprpacker is distributed under the MIT license.
+```
+build/
+ ├── downloads/      # Source tarballs
+ ├── src/            # Source code and temporary build trees
+ ├── out/            # Build artifacts
+ ├── images/         # Final SquashFS system image
+ ├── kernel/         # Kernel build output
+ ├── vm/             # Virtual machine files (OVMF, qcow2 disks, etc.)
+ └── sysroot/        # Temporary root used during image assembly
+```
+
+---
+
+## 📜 License
+
+Hyprpacker is distributed under the **MIT License**.

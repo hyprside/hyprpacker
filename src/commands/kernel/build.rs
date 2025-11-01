@@ -9,8 +9,7 @@ use colored::Colorize;
 use thiserror::Error;
 
 use crate::{
-    manifest::{KernelOptionValue, Manifest},
-    prefix_commands,
+    hash::hash_file, manifest::{KernelOptionValue, Manifest}, prefix_commands
 };
 
 const KERNEL_IMAGE_NAME: &str = "hyprpacker-kernel-builder:latest";
@@ -156,7 +155,6 @@ impl KernelBuildResult {
 
 pub fn build(manifest: &Manifest) -> Result<KernelBuildResult, KernelBuildError> {
     let kernel = &manifest.kernel;
-
     let kernel_root = PathBuf::from("build/kernel");
     let downloads_dir = kernel_root.join("downloads");
     let src_dir = kernel_root.join("src");
@@ -171,6 +169,7 @@ pub fn build(manifest: &Manifest) -> Result<KernelBuildResult, KernelBuildError>
     let tarball_name = extract_filename(&kernel.url).unwrap_or_else(|| "kernel.tar".to_string());
     let tarball_path = downloads_dir.join(&tarball_name);
 
+    // --- Download if needed ---
     let needs_download =
         !tarball_path.exists() || tarball_path.metadata().map(|m| m.len()).unwrap_or(0) == 0;
     if needs_download {
@@ -179,27 +178,85 @@ pub fn build(manifest: &Manifest) -> Result<KernelBuildResult, KernelBuildError>
             "󰇚 Downloading kernel sources".green().bold(),
             kernel.url.cyan()
         );
-        let response = ureq::get(&kernel.url)
-            .call()
-            .map_err(KernelBuildError::Download)?;
-        let mut reader = response.into_body().into_reader();
-        let mut file = File::create(&tarball_path)?;
-        std::io::copy(&mut reader, &mut file)?;
-    } else {
+
+        let tmp_path = tarball_path.with_extension("partial");
+        match (|| -> Result<(), KernelBuildError> {
+            let response = ureq::get(&kernel.url).call().map_err(KernelBuildError::Download)?;
+            let mut reader = response.into_body().into_reader();
+            let mut file = File::create(&tmp_path)?;
+            std::io::copy(&mut reader, &mut file)?;
+            fs::rename(&tmp_path, &tarball_path)?;
+            Ok(())
+        })() {
+            Ok(_) => {}
+            Err(e) => {
+                let _ = fs::remove_file(&tmp_path);
+                let _ = fs::remove_file(&tarball_path);
+                return Err(e);
+            }
+        }
+
+        // --- Validate tarball type using `file` ---
+        let output = Command::new("file")
+            .arg("--brief")
+            .arg("--mime-type")
+            .arg(&tarball_path)
+            .output()
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to run `file`"))?;
+
+        let mime = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !mime.contains("gzip")
+            && !mime.contains("xz")
+            && !mime.contains("bzip2")
+            && !mime.contains("tar")
+        {
+            println!(
+                "{} {} ({})",
+                "󰈸 Invalid kernel tarball detected!".red().bold(),
+                tarball_path.display(),
+                mime
+            );
+            let _ = fs::remove_file(&tarball_path);
+            return Err(KernelBuildError::Io(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Invalid tarball type: {mime}"),
+            )));
+        }
+
         println!(
             "{} {}",
-            "󰇚 Reusing cached kernel sources".green().bold(),
-            tarball_path.display()
+            "󰜥 Valid kernel tarball detected:".green().bold(),
+            mime
         );
     }
 
+    // --- Calculate tarball hash ---
+    let current_hash = hash_file(&tarball_path)?.to_string();
+
+    let hash_path = out_dir.join("kernel.hash");
+    if hash_path.exists() {
+        let old_hash = fs::read_to_string(&hash_path).unwrap_or_default();
+        if old_hash.trim() == current_hash {
+            let artifact_path = locate_artifact(&out_dir)?;
+            println!(
+                "{} {}",
+                "󰞇 Kernel source unchanged, skipping rebuild →".yellow().bold(),
+                artifact_path.display()
+            );
+            return Ok(KernelBuildResult { artifact_path });
+        }
+    }
+
+    // --- Write config options ---
     let options_path = config_dir.join("options.config");
     write_options_file(&options_path, &kernel.options)?;
 
+    // --- Build Docker image if needed ---
     let dockerfile_path = kernel_root.join("kernel.Dockerfile");
     fs::write(&dockerfile_path, KERNEL_DOCKERFILE_CONTENT)?;
     ensure_kernel_builder_image(&dockerfile_path)?;
 
+    // --- Canonical paths ---
     let downloads_dir = canonicalize(&downloads_dir)?;
     let src_dir = canonicalize(&src_dir)?;
     let out_dir = canonicalize(&out_dir)?;
@@ -232,8 +289,10 @@ pub fn build(manifest: &Manifest) -> Result<KernelBuildResult, KernelBuildError>
     }
 
     let artifact_path = locate_artifact(&out_dir)?;
+    fs::write(&hash_path, &current_hash)?;
     Ok(KernelBuildResult { artifact_path })
 }
+
 
 fn write_options_file(
     path: &Path,

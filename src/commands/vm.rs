@@ -145,11 +145,11 @@ pub fn run_command(opts: RunCommandOptions) -> Result<(), RunCommandError> {
 
 	let setup_script = [
 			"set -xe",
-			"qemu-nbd --disconnect /dev/nbd0",
-			"qemu-nbd --disconnect /dev/nbd1",
+			"qemu-nbd --disconnect /dev/nbd0 || true",
+			"qemu-nbd --disconnect /dev/nbd1 || true",
 			"umount /mnt/hyprside-user || true",
 			"umount /mnt/hyprside-vm || true",
-			"modprobe -r nbd",
+			"modprobe -r nbd || true",
 			"sleep 0.1s",
 			"modprobe nbd",
 			"qemu-img create -f qcow2 build/vm/system.qcow2 2G",
@@ -177,7 +177,7 @@ pub fn run_command(opts: RunCommandOptions) -> Result<(), RunCommandError> {
 				opts.initrd_path.display()
 			),
 			"SYSTEM_PARTITION=$(blkid -s PARTUUID -o value /dev/nbd0p2)",
-			"USER_PARTITION=$(blkid -s PARTUUID -o value /dev/nbd1p1)",
+			"USER_PARTITION=$(blkid -s PARTUUID -o value /dev/nbd1p1 || true)",
 			"cat > /mnt/hyprside-vm/limine.conf <<EOF
 timeout: 0
 /Hyprside
@@ -186,15 +186,15 @@ timeout: 0
     cmdline: console=ttyS0 system_partition=UUID=$SYSTEM_PARTITION user_partition=UUID=$USER_PARTITION
     module_path: boot():/initramfs.img
 EOF",
-			"umount /mnt/hyprside-vm",
+			"umount /mnt/hyprside-vm || true",
 			"mount /dev/nbd0p2 /mnt/hyprside-vm",
 			&format!(
 				"cp {} /mnt/hyprside-vm/system.squashfs",
 				opts.image_path.display()
 			),
-			"umount /mnt/hyprside-vm",
-			"qemu-nbd --disconnect /dev/nbd0",
-			"qemu-nbd --disconnect /dev/nbd1",
+			"umount /mnt/hyprside-vm || true",
+			"qemu-nbd --disconnect /dev/nbd0 || true",
+			"qemu-nbd --disconnect /dev/nbd1 || true",
 			"sleep 0.2s"
 		];
 
